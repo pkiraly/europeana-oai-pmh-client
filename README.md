@@ -35,12 +35,12 @@ You can try whether it is running, and produces the right output via
 
 The output it produces is something like this:
 
-   harvested records:     1000 / total records: 0 / last request took: 67.386s / total: 67.386s
-   harvested records:     2000 / total records: 0 / last request took: 15.162s / total: 82.548s
-   harvested records:     3000 / total records: 0 / last request took: 14.849s / total: 97.397s
-   harvested records:     4000 / total records: 0 / last request took: 15.412s / total: 112.810s
-   harvested records:     5000 / total records: 0 / last request took: 14.651s / total: 127.461s
-   harvested records:     6000 / total records: 0 / last request took: 12.919s / total: 140.380s
+    harvested records:     1000 / total records: 0 / last request took: 67.386s / total: 67.386s
+    harvested records:     2000 / total records: 0 / last request took: 15.162s / total: 82.548s
+    harvested records:     3000 / total records: 0 / last request took: 14.849s / total: 97.397s
+    harvested records:     4000 / total records: 0 / last request took: 15.412s / total: 112.810s
+    harvested records:     5000 / total records: 0 / last request took: 14.651s / total: 127.461s
+    harvested records:     6000 / total records: 0 / last request took: 12.919s / total: 140.380s
 
 Since it will take very long time I suggest to run in the background and use nohup, which lets you to log out and back in from and to the machine during the process.
 
