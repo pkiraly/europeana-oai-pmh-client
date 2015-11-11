@@ -1,6 +1,6 @@
 # Harvester for Europeana OAI-PMH Service
 
-This PHP script downloads all Europeana records via OAI-PMH protocol. The result are a number of files (named as `europeana-oai-pmh-import-dddddddd.json`), each contain one record per line in JSON format.
+This PHP script downloads all Europeana records via OAI-PMH protocol. The result are a number of files (named as `europeana-oai-pmh-import-dddddddd.json`), each contain 1000 records, one record per line in JSON format.
 Be aware: a full harvest takes more than a week and resulted 250+ GB content.
 More about the service see http://labs.europeana.eu/api/oai-pmh-introduction.
 
@@ -42,6 +42,8 @@ The output it produces is something like this:
     harvested records:     5000 / total records: 0 / last request took: 14.651s / total: 127.461s
     harvested records:     6000 / total records: 0 / last request took: 12.919s / total: 140.380s
 
+This log tells you how many records were harvested so far, how much each request took, and also the total time taken so far. Unfortunatelly the Europeana service doesn't implemented the optional `cursor` attibute, which would tell you the number of total records (I hope it will be implemented soon). At the time of writing this there are 44 725 946 records available via the Europeana API, I guess OAI-PMH server contains the very same number of records.
+
 Since it will take very long time I suggest to run in the background and use nohup, which lets you to log out and back in from and to the machine during the process.
 
     $ nohup php oai2json.php &
@@ -49,3 +51,5 @@ Since it will take very long time I suggest to run in the background and use noh
 It will create a file called `nohup.out` in the same directory, and from time to time you can check where the process is going.
 
 Have fun!
+
+note: This script is part of my [Data Quality Assurance Framework](http://pkiraly.github.io) project.
