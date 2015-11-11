@@ -52,4 +52,4 @@ It will create a file called `nohup.out` in the same directory, and from time to
 
 Have fun!
 
-note: This script is part of my [Data Quality Assurance Framework](http://pkiraly.github.io) project.
+note: This script is part of my [Metadata Quality Assurance Framework](http://pkiraly.github.io) project.
