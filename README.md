@@ -7,7 +7,7 @@ More about the service see http://labs.europeana.eu/api/oai-pmh-introduction.
 ## Requirements
 
 * PHP
-* php-curl library
+* php5-curl library
 * https://github.com/pkiraly/oai-pmh-lib
 
 ## Configuration
