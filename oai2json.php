@@ -1,6 +1,6 @@
 <?php
 define('LN', "\n");
-define('FILE_NAME_TEMPLATE', 'europeana-oai-pmh-import-%07d.json');
+define('FILE_NAME_TEMPLATE', 'europeana-oai-pmh-import-%08d.json');
 define('ID_PREFIX', 'http://data.europeana.eu/item/');
 
 require_once('../oai-pmh-lib/OAIHarvester.php');
