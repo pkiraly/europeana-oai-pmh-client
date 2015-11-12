@@ -35,14 +35,15 @@ You can try whether it is running, and produces the right output via
 
 The output it produces is something like this:
 
-    harvested records:     1000 / total records: 0 / last request took: 67.386s / total: 67.386s
-    harvested records:     2000 / total records: 0 / last request took: 15.162s / total: 82.548s
-    harvested records:     3000 / total records: 0 / last request took: 14.849s / total: 97.397s
-    harvested records:     4000 / total records: 0 / last request took: 15.412s / total: 112.810s
-    harvested records:     5000 / total records: 0 / last request took: 14.651s / total: 127.461s
-    harvested records:     6000 / total records: 0 / last request took: 12.919s / total: 140.380s
+    harvested records:     1000 / total records: 0 / last request took: 13.937s (fetch: 13.304s) / total: 00:00:13 / resumptionToken: VVYQP_157
+    harvested records:     2000 / total records: 0 / last request took: 16.436s (fetch: 15.178s) / total: 00:00:30 / resumptionToken: VVYQP_157
+    harvested records:     3000 / total records: 0 / last request took: 16.249s (fetch: 14.956s) / total: 00:00:46 / resumptionToken: VVYQP_157
+    harvested records:     4000 / total records: 0 / last request took: 16.479s (fetch: 15.362s) / total: 00:01:03 / resumptionToken: VVYQP_157
+    harvested records:     5000 / total records: 0 / last request took: 15.823s (fetch: 14.542s) / total: 00:01:18 / resumptionToken: VVYQP_157
+    harvested records:     6000 / total records: 0 / last request took: 13.695s (fetch: 12.861s) / total: 00:01:32 / resumptionToken: VVYQP_157
 
-This log tells you how many records were harvested so far, how much each request took, and also the total time taken so far. Unfortunatelly the Europeana service doesn't implemented the optional `cursor` attibute, which would tell you the number of total records (I hope it will be implemented soon). At the time of writing this there are 44 725 946 records available via the Europeana API, I guess OAI-PMH server contains the very same number of records.
+
+This log tells you how many records were harvested so far, how much each request took (the fetch part is the HTTP request without any client-side processing phase), and also the total time taken so far. It also gives you the resumptionToken, which would be useful if the process brokes somewehere and you would like to continue it without restarting. Unfortunatelly the Europeana service doesn't implemented the optional `cursor` attibute, which would tell you the number of total records (I hope it will be implemented soon). At the time of writing this there are 44 725 946 records available via the Europeana API, I guess OAI-PMH server contains the very same number of records.
 
 Since it will take very long time I suggest to run in the background and use nohup, which lets you to log out and back in from and to the machine during the process.
 
