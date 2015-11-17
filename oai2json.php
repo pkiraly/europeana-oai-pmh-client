@@ -5,6 +5,7 @@ define('ID_PREFIX', 'http://data.europeana.eu/item/');
 define('DAY',    60 * 60 * 24);
 define('MONTH',  28 * DAY);
 define('YEAR',  365 * DAY);
+define('MAX_RETRY', 3);
 
 require_once('../oai-pmh-lib/OAIHarvester.php');
 require_once('config.php');
@@ -22,20 +23,27 @@ do {
   $harvester = new OAIHarvester('ListRecords', 'http://oai.europeana.eu/oaicat/OAIHandler', $params);
   $harvester->setAuthentication($configuration['username'], $configuration['password']);
   $times['fetch'] = microtime(TRUE);
-  $harvester->fetchContent();
+  $retry = 0;
+  do {
+    $harvester->fetchContent();
+    if ($retry > 0) print "Needs retrying at $total ($retry)\n";
+    $fetchOk = checkFetchState($harvester, $total, $retry);
+  } while ($fetchOk === FALSE && ++$retry <= MAX_RETRY);
   $times['fetch'] = (microtime(TRUE) - $times['fetch']);
-  $harvester->processContent();
   $currentRecordCount = 0;
-  while (($record = $harvester->getNextRecord()) != null) {
-    $currentRecordCount++;
-    $metadata = processRecord($record);
-    if (!empty($metadata)) {
-      fwrite($out, json_encode($metadata) . LN);
+  if ($fetchOk) {
+    $harvester->processContent();
+    while (($record = $harvester->getNextRecord()) != null) {
+      $currentRecordCount++;
+      $metadata = processRecord($record);
+      if (!empty($metadata)) {
+        fwrite($out, json_encode($metadata) . LN);
+      }
     }
   }
   $doNext = false;
   $token = array();
-  if ($harvester->hasResumptionToken()) {
+  if ($fetchOk && $harvester->hasResumptionToken()) {
     $token = $harvester->getResumptionToken();
     if (isset($token['text'])) {
       $total += $harvester->getRecordCount();
@@ -60,6 +68,16 @@ function processRecord($record) {
     $metadata['sets'] = $record['header']['setSpec'];
   }
   return $metadata;
+}
+
+function checkFetchState($harvester, $total, $retry) {
+  if ($harvester->getHttpCode() == 200 && $harvester->getContentType() == 'text/xml;charset=UTF-8') {
+    $fetchOk = TRUE;
+  } else {
+    file_put_contents(sprintf('errors/%d-%d.txt', $total, $retry), $harvester->getRequestUrl() . LN . $harvester->getHttpHeader() . LN . $harvester->getContent());
+    $fetchOk = FALSE;
+  }
+  return $fetchOk;
 }
 
 /**
@@ -105,16 +123,20 @@ function dom_to_array($node, $parent_name = NULL) {
  * Prints a one line summary
  */
 function printReport($token, $currentRecordCount) {
-  global $times;
+  global $times, $harvester;
 
+  $cursor = isset($token['attributes']['cursor']) ? $token['attributes']['cursor'] : $currentRecordCount;
+  $completeListSize = isset($token['attributes']['completeListSize']) ? $token['attributes']['completeListSize'] : 0;
   $t2 = microtime(TRUE);
-  printf("harvested records: %8d / total records: %d / last request took: %.3fs (fetch: %.3fs) / total: %s / resumptionToken: %s\n",
-    (isset($token['attributes']['cursor']) ? $token['attributes']['cursor'] : $currentRecordCount),
-    $token['attributes']['completeListSize'],
+  printf("harvested records: %8d / total records: %d / last request took: %.3fs (fetch: %.3fs) / total: %s / token: %s / HTTP response %d %s\n",
+    $cursor,
+    $completeListSize,
     ($t2 - $times['t1']),
     $times['fetch'],
     formatInterval((int)($t2 - $times['t0'])),
-    $token['text']
+    (isset($token['text']) ? $token['text'] : 'unknown'),
+    $harvester->getHttpCode(),
+    $harvester->getContentType()
   );
   $times['t1'] = $t2;
 }
