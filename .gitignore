@@ -1,3 +1,5 @@
 config.php
+config.cfg
+errors/*.txt
 *.json
 *.gz
