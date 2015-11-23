@@ -74,7 +74,11 @@ function checkFetchState($harvester, $total, $retry) {
   if ($harvester->getHttpCode() == 200 && $harvester->getContentType() == 'text/xml;charset=UTF-8') {
     $fetchOk = TRUE;
   } else {
-    file_put_contents(sprintf('errors/%d-%d.txt', $total, $retry), $harvester->getRequestUrl() . LN . $harvester->getHttpHeader() . LN . $harvester->getContent());
+    $content = 'URL:' . LN . $harvester->getRequestUrl() . LN . LN;
+    $content .= 'REQUEST HEADER:' . LN . $harvester->getRequestHeader() . LN . LN;
+    $content .= 'RESPONSE HEADER:' . LN . $harvester->getHttpHeader() . LN . LN;
+    $content .= 'CONTENT:' . LN . $harvester->getContent();
+    file_put_contents(sprintf('errors/%d-%d.txt', $total, $retry), $content);
     $fetchOk = FALSE;
   }
   return $fetchOk;
