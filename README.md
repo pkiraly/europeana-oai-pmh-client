@@ -64,17 +64,19 @@ The process takes long time, and during that time I am curious what happens righ
 * the "error" files, which contains the information about the responses which did not return HTTP 200 code and JSON content
 * System disk space
 
-I just setup a cron job, which runs the script in every minute, and output the report into a file in the machine's web server:
-
-    $ crontab -l
-    $ */1 * * * * /path/to/europeana-oai-pmh-client/report-html.sh > /var/www/html/report.html
-
 The report requires a confg file as well, so efore the first run:
 
     $ cp config.sample.cfg config.cfg
     $ nano config.cfg
 
 There is only one value (now) you have to set up: `DATA_DIR`, which is the same as for the php script's `output_dir`, The directory where the script should save the JSON files.
+
+I setup a cron job, which runs the script in every minute, and output the report into a file in the machine's web server:
+
+    $ crontab -l
+    $ */1 * * * * /path/to/europeana-oai-pmh-client/report-html.sh > /var/www/html/report.html
+
+And this way you can access the report from the browser as http://example.com/report.html.
 
 Have fun!
 
