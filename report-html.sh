@@ -24,10 +24,22 @@ echo '<h1>Europeana OAI-PMH Harvester<br/>progress report</h1>'
 echo '<p>[status at' `date +"%Y-%m-%d %H:%M"`']</p>'
 echo '<p>This report shows you some information about the ongoing harvesting which should harvest approximatelly 45 million records. Find more about the project: <a href="https://pkiraly.github.io/">Metadata Quality Assurance Framework</a>, and about the harvester: <a href="https://github.com/pkiraly/europeana-oai-pmh-client">here</a>.</p>'
 
-echo '<h2>log</h2>'
+echo '<h2>harvester log</h2>'
 echo '<p>The 10 latest harvest requests.</p>'
 echo '<pre>'
-tail $DIR/nohup.out
+tail $DIR/oai2json-report.txt
+echo '</pre>'
+
+echo '<h2>launcher log</h2>'
+echo '<p>The 10 latest launched harvester requests.</p>'
+echo '<pre>'
+tail $DIR/launch-report.txt
+echo '</pre>'
+
+echo '<h2>running harvesters</h2>'
+echo '<p>The 10 latest launched harvester requests.</p>'
+echo '<pre>'
+ps aux | grep "[o]ai2json.php" | awk '{print $9 " " $10 " " $11 " " $12 " " $13}'
 echo '</pre>'
 
 echo '<h2>file size</h2>'
