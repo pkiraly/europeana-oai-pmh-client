@@ -10,16 +10,27 @@ define('MAX_RETRY', 3);
 require_once('../oai-pmh-lib/OAIHarvester.php');
 require_once('config.php');
 
+$options = processOptions(getopt("s::", array('set::')));
 $total = 0;
-
 $times = array(
   't0' => microtime(TRUE),
   't1' => microtime(TRUE),
 );
+
 $params = array('metadataPrefix' => 'edm');
+if (isset($options['set'])) {
+  $params['set'] = $options['set'];
+  define('SET_BASED_FILE_NAME_TEMPLATE', $options['set'] . '/%08d.json');
+  $dir = $configuration['output_dir'] . '/' . $options['set'];
+  if (!file_exists($dir)) {
+    if (!mkdir($dir)) {
+      die('Failed to create directory: ' . $dir);
+    }
+  }
+}
+
 do {
-  $outName = sprintf(FILE_NAME_TEMPLATE, $total);
-  $out = fopen($configuration['output_dir'] . $outName, "w");
+  $out = fopen($configuration['output_dir'] . getOutputFileName($total), "w");
   $harvester = new OAIHarvester('ListRecords', 'http://oai.europeana.eu/oaicat/OAIHandler', $params);
   $harvester->setAuthentication($configuration['username'], $configuration['password']);
   $times['fetch'] = microtime(TRUE);
@@ -127,21 +138,26 @@ function dom_to_array($node, $parent_name = NULL) {
  * Prints a one line summary
  */
 function printReport($token, $currentRecordCount) {
-  global $times, $harvester;
+  global $times, $harvester, $options;
 
   $cursor = isset($token['attributes']['cursor']) ? $token['attributes']['cursor'] : $currentRecordCount;
   $completeListSize = isset($token['attributes']['completeListSize']) ? $token['attributes']['completeListSize'] : 0;
   $t2 = microtime(TRUE);
-  printf("harvested records: %8d / total records: %d / last request took: %.3fs (fetch: %.3fs) / total: %s / token: %s / HTTP response %d %s\n",
+  $report = sprintf("harvested records: %8d / total records: %d / last request took: %.3fs (fetch: %.3fs) / total: %s / token: %s",
     $cursor,
     $completeListSize,
     ($t2 - $times['t1']),
     $times['fetch'],
     formatInterval((int)($t2 - $times['t0'])),
-    (isset($token['text']) ? $token['text'] : 'unknown'),
-    $harvester->getHttpCode(),
-    $harvester->getContentType()
+    (isset($token['text']) ? $token['text'] : 'unknown')
   );
+
+  if (isset($options['set'])) {
+    $report .= sprintf(" / set %s", $options['set']);
+  }
+
+  $report .= sprintf(" / HTTP response %d %s", $harvester->getHttpCode(), $harvester->getContentType());
+  echo $report, LN; 
   $times['t1'] = $t2;
 }
 
@@ -176,4 +192,20 @@ function formatInterval($timespan) {
     $format = '%yy %Mm %Dd %H:%I:%S';
   }
   return $interval->recalculate()->format($format);
+}
+
+function getOutputFileName($total) {
+  $fileNameTpl = defined('SET_BASED_FILE_NAME_TEMPLATE') ? SET_BASED_FILE_NAME_TEMPLATE : FILE_NAME_TEMPLATE;
+  return sprintf($fileNameTpl, $total);;
+}
+
+function processOptions($input) {
+  $options = array();
+  if (isset($input['set']) && !empty($input['set'])) {
+    $options['set'] = $input['set'];
+  }
+  if (!isset($options['set']) && isset($input['s']) && !empty($input['s'])) {
+    $options['set'] = $input['s'];
+  }
+  return $options;
 }
