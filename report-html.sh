@@ -51,7 +51,7 @@ echo '</pre>'
 echo '<h2>number of files</h2>'
 echo '<p>The number of JSON files in the data directory.</p>'
 echo '<pre>'
-ls -la $DATA_DIR/*.json | wc -l
+ls -lR $DATA_DIR/ | grep .json | wc -l
 echo '</pre>'
 
 echo '<h2>incorrect responses</h2>'
