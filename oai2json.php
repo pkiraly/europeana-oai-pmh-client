@@ -64,6 +64,8 @@ do {
   }
   printReport($token, $currentRecordCount);
 } while ($doNext);
+echo 'Finished', (isset($options['set']) ? ' ' . $options['set'] : ''), LN;
+
 
 /**
  * Processing an individual record
@@ -82,6 +84,8 @@ function processRecord($record) {
 }
 
 function checkFetchState($harvester, $total, $retry) {
+  global $options;
+
   if ($harvester->getHttpCode() == 200 && $harvester->getContentType() == 'text/xml;charset=UTF-8') {
     $fetchOk = TRUE;
   } else {
@@ -89,7 +93,12 @@ function checkFetchState($harvester, $total, $retry) {
     $content .= 'REQUEST HEADER:' . LN . $harvester->getRequestHeader() . LN . LN;
     $content .= 'RESPONSE HEADER:' . LN . $harvester->getHttpHeader() . LN . LN;
     $content .= 'CONTENT:' . LN . $harvester->getContent();
-    file_put_contents(sprintf('errors/%d-%d.txt', $total, $retry), $content);
+    if (isset($options['set'])) {
+      $fileName = sprintf('errors/%s-%d-%d.txt', $options['set'], $total, $retry);
+    } else {
+      $fileName = sprintf('errors/%d-%d.txt', $total, $retry);
+    }
+    file_put_contents($fileName, $content);
     $fetchOk = FALSE;
   }
   return $fetchOk;
@@ -143,7 +152,7 @@ function printReport($token, $currentRecordCount) {
   $cursor = isset($token['attributes']['cursor']) ? $token['attributes']['cursor'] : $currentRecordCount;
   $completeListSize = isset($token['attributes']['completeListSize']) ? $token['attributes']['completeListSize'] : 0;
   $t2 = microtime(TRUE);
-  $report = sprintf("harvested records: %8d / total records: %d / last request took: %.3fs (fetch: %.3fs) / total: %s / token: %s",
+  $report = sprintf("harvested records: %8d / total records: %d / last request took: %.1fs (fetch: %.1fs) / total: %s / token: %s",
     $cursor,
     $completeListSize,
     ($t2 - $times['t1']),
