@@ -56,9 +56,27 @@ As mentioned in the service's web page the OAI-PMH service is in beta varsion. F
 
 ## Pseudo Multi-Thread Mode (new!)
 
+During the development time it is a blocked thing, that it seems the service denied requests at a point, sometimes sooner, sometimes later. The longest period the server was able to respond the requests was 4 days. Unfortunatelly it is not possible to start over from the point I have been, but I have to restart everything from point zero. OAI-PMH provides a method to harvest smaller chunks called sets, and the Europeana OAI-PMH implementation supports this feature. In Europeana the ingesting unit is called collection or data set, and the service uses the same group of records for the set feature. Now there are 1800+ sets. The sets does not have any semantical meaning, they are just records which were ingested on the same day, and usually from the same aggreator service. The trick applied here, that we can call several harvester at the same time if we specify different sets for each.
+
+We have a list of sets (`setlist.txt`), and a launcher script (`launcher.php`). The launcher first checks how many individual instances run from the `oai2json.php` script with good old `ps` unix command. If that's less than the maximum (I set it to 10), it picks up the first element from the setlist (at the same time removes it as well from the list), and calls the `oai2json.php` with that argument, otherwise (if the number of threads is equal than maximum, or there is no more element in the list) it simple exits. To make this process automatic we can create a cron job to run it in every minute.
+
+Setup:
+
+1) prepare setlist.txt
+```
+cp setlist-master.txt setlist.txt
+```
+
+2) setup the cron job
 ```
 */1 * * * * cd /path/to/europeana-oai-pmh-client/ && php launcher.php >> launch-report.txt
 ```
+
+If you want to try this set feature without the pseudo multi-threading feature, here is the command:
+
+    $ php oai2json.php --set="[set name]"
+or
+    $ php oai2json.php -s="[set name]"
 
 ## Status reports
 
