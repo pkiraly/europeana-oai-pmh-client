@@ -75,7 +75,9 @@ cp setlist-master.txt setlist.txt
 If you want to try this set feature without the pseudo multi-threading feature, here is the command:
 
     $ php oai2json.php --set="[set name]"
+
 or
+
     $ php oai2json.php -s="[set name]"
 
 ## Status reports
