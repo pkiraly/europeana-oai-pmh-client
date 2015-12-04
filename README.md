@@ -54,6 +54,12 @@ It will create a file called `nohup.out` in the same directory, and from time to
 
 As mentioned in the service's web page the OAI-PMH service is in beta varsion. For daily practice it means that from time to time the server doesn't behave perfectly, and returns Tomcat (that's the Java application container in which the service works) error messages. Those messages are not well formed XML and HTTP 200 responses and usually reflects on some temporary issues, the client resends the original request maximum three times, hoping that meantime those issues have gone. The request and response messages for this retry cycles are stored in the `errors` directory. If you find such errors, please report them to the Europeana stuff those might be useful in debugging.
 
+## Pseudo Multi-Thread Mode (new!)
+
+```
+*/1 * * * * cd /path/to/europeana-oai-pmh-client/ && php launcher.php >> launch-report.txt
+```
+
 ## Status reports
 
 The process takes long time, and during that time I am curious what happens right now, how the process is going, so I attached a simple bash script which collects the following information:
