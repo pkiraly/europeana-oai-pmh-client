@@ -8,9 +8,11 @@ define('YEAR',  365 * DAY);
 define('MAX_RETRY', 3);
 
 require_once('../oai-pmh-lib/OAIHarvester.php');
-require_once('config.php');
+// require_once('config.php');
+$configuration = parse_ini_file('config.cfg');
 
-$options = processOptions(getopt("s::", array('set::')));
+$options = processOptions(getopt("s::i::f::", array('set::', 'id::', 'file::')));
+
 $total = 0;
 $times = array(
   't0' => microtime(TRUE),
@@ -21,7 +23,7 @@ $params = array('metadataPrefix' => 'edm');
 if (isset($options['set'])) {
   $params['set'] = $options['set'];
   define('SET_BASED_FILE_NAME_TEMPLATE', $options['set'] . '/%08d.json');
-  $dir = $configuration['output_dir'] . '/' . $options['set'];
+  $dir = $configuration['OUTPUT_DIR'] . '/' . $options['set'];
   if (!file_exists($dir)) {
     if (!mkdir($dir)) {
       die('Failed to create directory: ' . $dir);
@@ -29,42 +31,67 @@ if (isset($options['set'])) {
   }
 }
 
-do {
-  $out = fopen($configuration['output_dir'] . getOutputFileName($total), "w");
-  $harvester = new OAIHarvester('ListRecords', 'http://oai.europeana.eu/oaicat/OAIHandler', $params);
-  $harvester->setAuthentication($configuration['username'], $configuration['password']);
-  $times['fetch'] = microtime(TRUE);
-  $retry = 0;
+$verb = 'ListRecords';
+if (isset($options['id'])) {
+  $params['identifier'] = ID_PREFIX . $options['id'];
+  unset($params['set']);
+  define('ID_BASED_FILE_NAME_TEMPLATE', $options['set'] . '/individuals.json');
+  $out = fopen($configuration['OUTPUT_DIR'] . getOutputFileName($total), "a+");
+  $verb = 'GetRecord';
+} else {
+  $out = fopen($configuration['OUTPUT_DIR'] . getOutputFileName($total), "w");
+}
+
   do {
-    $harvester->fetchContent();
-    if ($retry > 0) print "Needs retrying at $total ($retry)\n";
-    $fetchOk = checkFetchState($harvester, $total, $retry);
-  } while ($fetchOk === FALSE && ++$retry <= MAX_RETRY);
-  $times['fetch'] = (microtime(TRUE) - $times['fetch']);
-  $currentRecordCount = 0;
-  if ($fetchOk) {
-    $harvester->processContent();
-    while (($record = $harvester->getNextRecord()) != null) {
-      $currentRecordCount++;
-      $metadata = processRecord($record);
-      if (!empty($metadata)) {
-        fwrite($out, json_encode($metadata) . LN);
+    $harvester = new OAIHarvester($verb, 'http://oai.europeana.eu/oaicat/OAIHandler', $params);
+    $harvester->setAuthentication($configuration['username'], $configuration['password']);
+    $times['fetch'] = microtime(TRUE);
+    $retry = 0;
+    do {
+      $harvester->fetchContent();
+      if ($retry > 0) print "Needs retrying at $total ($retry)\n";
+      $fetchOk = checkFetchState($harvester, $total, $retry);
+    } while ($fetchOk === FALSE && ++$retry <= MAX_RETRY);
+    $times['fetch'] = (microtime(TRUE) - $times['fetch']);
+    $currentRecordCount = 0;
+    if ($fetchOk) {
+      $harvester->processContent();
+      while (($record = $harvester->getNextRecord()) != null) {
+        $currentRecordCount++;
+        $metadata = processRecord($record);
+        if (!empty($metadata)) {
+          fwrite($out, json_encode($metadata) . LN);
+        }
       }
     }
-  }
-  $doNext = false;
-  $token = array();
-  if ($fetchOk && $harvester->hasResumptionToken()) {
-    $token = $harvester->getResumptionToken();
-    if (isset($token['text'])) {
-      $total += $harvester->getRecordCount();
-      $params = array('resumptionToken' => $token['text']);
-      $doNext = true;
+    fclose($out);
+    $doNext = false;
+    $token = array();
+    if (!$fetchOk) {
+      $status = 'broken with wrong HTTP response';
+    } else {
+      if (!$harvester->hasResumptionToken()) {
+        $status = 'finished';
+      } else {
+        $token = $harvester->getResumptionToken();
+        if (!isset($token['text'])) {
+          $status = 'broken with wrong token: ' . json_encode($token);
+        } else {
+          if ($harvester->getRecordCount() == -1) {
+            $status = 'broken with empty response';
+          } else {
+            $total += $harvester->getRecordCount();
+            $params = array('resumptionToken' => $token['text']);
+            $doNext = true;
+            $status = 'to be continued';
+          }
+        }
+      }
     }
-  }
-  printReport($token, $currentRecordCount);
-} while ($doNext);
-echo 'Finished', (isset($options['set']) ? ' ' . $options['set'] : ''), LN;
+    printReport($token, $currentRecordCount);
+  } while ($doNext);
+
+echo 'Finished', (isset($options['set']) ? ' SET: ' . $options['set'] : ''), ' STATUS: ', $status, LN;
 
 
 /**
@@ -86,6 +113,7 @@ function processRecord($record) {
 function checkFetchState($harvester, $total, $retry) {
   global $options;
 
+  // print 'URL: ' . $harvester->getRequestUrl() . LN;
   if ($harvester->getHttpCode() == 200 && $harvester->getContentType() == 'text/xml;charset=UTF-8') {
     $fetchOk = TRUE;
   } else {
@@ -204,17 +232,32 @@ function formatInterval($timespan) {
 }
 
 function getOutputFileName($total) {
-  $fileNameTpl = defined('SET_BASED_FILE_NAME_TEMPLATE') ? SET_BASED_FILE_NAME_TEMPLATE : FILE_NAME_TEMPLATE;
-  return sprintf($fileNameTpl, $total);;
+  if (defined('ID_BASED_FILE_NAME_TEMPLATE')) {
+    $fileNameTpl = ID_BASED_FILE_NAME_TEMPLATE;
+  } else if (defined('SET_BASED_FILE_NAME_TEMPLATE')) {
+    $fileNameTpl = SET_BASED_FILE_NAME_TEMPLATE;
+  } else {
+    $fileNameTpl = FILE_NAME_TEMPLATE;
+  }
+  echo $fileNameTpl, LN;
+  return sprintf($fileNameTpl, $total);
 }
 
 function processOptions($input) {
   $options = array();
-  if (isset($input['set']) && !empty($input['set'])) {
-    $options['set'] = $input['set'];
-  }
-  if (!isset($options['set']) && isset($input['s']) && !empty($input['s'])) {
-    $options['set'] = $input['s'];
-  }
+  processOption($options, $input, 'set', 's', TRUE);
+  processOption($options, $input, 'id', 'i');
+  processOption($options, $input, 'file', 'f');
   return $options;
+}
+
+function processOption(&$options, $input, $long, $short, $encode = FALSE) {
+  if (isset($input[$long]) && !empty($input[$long])) {
+    $options[$long] = $input[$long];
+  }
+  if (!isset($options[$long]) && isset($input[$short]) && !empty($input[$short])) {
+    $options[$long] = $input[$short];
+  }
+  if (isset($options[$long]) && $encode)
+    $options[$long] = urlencode($options[$long]);
 }

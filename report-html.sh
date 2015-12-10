@@ -45,13 +45,13 @@ echo '</pre>'
 echo '<h2>file size</h2>'
 echo '<p>The occupied disk space at the data directory.</p>'
 echo '<pre>'
-du -h $DATA_DIR | sort -k2 | sed "s:$DATA_DIR::"
+du -h $OUTPUT_DIR | sort -k2 | sed "s:$OUTPUT_DIR::"
 echo '</pre>'
 
 echo '<h2>number of files</h2>'
 echo '<p>The number of JSON files in the data directory.</p>'
 echo '<pre>'
-ls -lR $DATA_DIR/ | grep .json | wc -l
+ls -lR $OUTPUT_DIR/ | grep .json | wc -l
 echo '</pre>'
 
 echo '<h2>incorrect responses</h2>'
