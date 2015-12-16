@@ -4,6 +4,7 @@ $options = processOptions(getopt("s:i:", array('set:', 'id:')));
 $harvestableIds = readHarvestableIds('harvestable/' . $options['id'] . '.txt');
 
 foreach ($harvestableIds as $id) {
+  echo $id, "\n";
   $cmd = sprintf('php oai2json.php --id="%s" --set="%s"', $id, $options['set']);
   exec($cmd);
 }
