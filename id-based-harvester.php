@@ -8,6 +8,22 @@ foreach ($harvestableIds as $id) {
   exec($cmd);
 }
 
+function processOptions($input) {
+  $options = array();
+  processOption($options, $input, 'set', 's');
+  processOption($options, $input, 'id', 'i');
+  return $options;
+}
+
+function processOption(&$options, $input, $long, $short) {
+  if (isset($input[$long]) && !empty($input[$long])) {
+    $options[$long] = urlencode($input[$long]);
+  }
+  if (!isset($options[$long]) && isset($input[$short]) && !empty($input[$short])) {
+    $options[$long] = urlencode($input[$short]);
+  }
+}
+
 function readHarvestableIds($file) {
   $ids = array();
   $handle = fopen($file, "r");
