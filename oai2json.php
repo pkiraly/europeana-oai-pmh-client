@@ -6,12 +6,15 @@ define('DAY',    60 * 60 * 24);
 define('MONTH',  28 * DAY);
 define('YEAR',  365 * DAY);
 define('MAX_RETRY', 3);
+// define('OAI_ENDPOINT', 'http://oai.europeana.eu/oaicat/OAIHandler');
+// define('OAI_ENDPOINT', 'http://record-management.eanadev.org:8080/oaicat/OAIHandler');
+define('OAI_ENDPOINT', 'http://oai.europeana.eu/oaicat/OAIHandler');
 
 require_once('../oai-pmh-lib/OAIHarvester.php');
 // require_once('config.php');
 $configuration = parse_ini_file('config.cfg');
 
-$options = processOptions(getopt("s::i::f::", array('set::', 'id::', 'file::')));
+$options = processOptions(getopt("s::i::f::t::", array('set::', 'id::', 'file::', 'split::')));
 
 $total = 0;
 $times = array(
@@ -33,65 +36,79 @@ if (isset($options['set'])) {
 
 $verb = 'ListRecords';
 if (isset($options['id'])) {
-  $params['identifier'] = ID_PREFIX . $options['id'];
+  $options['set'] = urldecode($options['set']);
+  $params['identifier'] = (strpos($options['id'], ID_PREFIX) !== FALSE) ? $options['id'] : ID_PREFIX . $options['id'];
   unset($params['set']);
-  define('ID_BASED_FILE_NAME_TEMPLATE', $options['set'] . '/individuals.json');
-  $out = fopen($configuration['OUTPUT_DIR'] . getOutputFileName($total), "a+");
+  define('ID_BASED_FILE_NAME_TEMPLATE', $options['set'] . '/individuals-' . $options['split'] . '.json');
+  // $out = fopen($configuration['OUTPUT_DIR'] . getOutputFileName($total), "a+");
   $verb = 'GetRecord';
-} else {
-  $out = fopen($configuration['OUTPUT_DIR'] . getOutputFileName($total), "w");
 }
 
+do {
+  $harvester = new OAIHarvester($verb, OAI_ENDPOINT, $params);
+  $harvester->setAuthentication($configuration['username'], $configuration['password']);
+  $harvester->setDebugInfo($options['set']);
+  $times['fetch'] = microtime(TRUE);
+
+  $retry = 0;
+  printf("%s - %s - fetch content\n", date('H:i:s'), $options['set']);
   do {
-    $harvester = new OAIHarvester($verb, 'http://oai.europeana.eu/oaicat/OAIHandler', $params);
-    $harvester->setAuthentication($configuration['username'], $configuration['password']);
-    $times['fetch'] = microtime(TRUE);
-    $retry = 0;
-    do {
-      $harvester->fetchContent();
-      if ($retry > 0) print "Needs retrying at $total ($retry)\n";
-      $fetchOk = checkFetchState($harvester, $total, $retry);
-    } while ($fetchOk === FALSE && ++$retry <= MAX_RETRY);
-    $times['fetch'] = (microtime(TRUE) - $times['fetch']);
-    $currentRecordCount = 0;
-    if ($fetchOk) {
-      $harvester->processContent();
-      while (($record = $harvester->getNextRecord()) != null) {
-        $currentRecordCount++;
-        $metadata = processRecord($record);
-        if (!empty($metadata)) {
-          fwrite($out, json_encode($metadata) . LN);
-        }
+    $harvester->fetchContent();
+    if ($retry > 0)
+      printf("%s - %s - Needs retrying at %d (%d)\n", date('H:i:s'), $options['set'], $total, $retry);
+    $fetchOk = checkFetchState($harvester, $total, $retry);
+    printf("%s - %s - fetchOK: %s\n", date('H:i:s'), $options['set'], json_encode($fetchOk));
+  } while ($fetchOk === FALSE && ++$retry <= MAX_RETRY);
+  $times['fetch'] = (microtime(TRUE) - $times['fetch']);
+  printf("%s - %s - fetched\n", date('H:i:s'), $options['set']);
+
+  $currentRecordCount = 0;
+  if ($fetchOk) {
+    $outFileName = $configuration['OUTPUT_DIR'] . getOutputFileName($total);
+    printf("%s - Outfile: %s\n", date('H:i:s'), $outFileName);
+    $out = isset($options['id']) ? fopen($outFileName, "a+") : fopen($outFileName, "w");
+    if ($out === FALSE || !is_resource($out)) {
+      die(sprintf("%s - Unable to open file %s", date('H:i:s'), $outFileName));
+    }
+    $harvester->processContent();
+    while (($record = $harvester->getNextRecord()) != null) {
+      $currentRecordCount++;
+      $metadata = processRecord($record);
+      if (!empty($metadata)) {
+        fwrite($out, json_encode($metadata) . LN);
       }
     }
     fclose($out);
-    $doNext = false;
-    $token = array();
-    if (!$fetchOk) {
-      $status = 'broken with wrong HTTP response';
+    exec("gzip $outFileName");
+  }
+  $doNext = false;
+  $token = array();
+  if (!$fetchOk) {
+    $status = 'broken with wrong HTTP response';
+  } else {
+    if (!$harvester->hasResumptionToken()) {
+      $status = 'finished';
     } else {
-      if (!$harvester->hasResumptionToken()) {
-        $status = 'finished';
+      $token = $harvester->getResumptionToken();
+      if (!isset($token['text'])) {
+        $status = 'broken with wrong token: ' . json_encode($token);
       } else {
-        $token = $harvester->getResumptionToken();
-        if (!isset($token['text'])) {
-          $status = 'broken with wrong token: ' . json_encode($token);
+        if ($harvester->getRecordCount() == -1) {
+          $status = 'broken with empty response';
         } else {
-          if ($harvester->getRecordCount() == -1) {
-            $status = 'broken with empty response';
-          } else {
-            $total += $harvester->getRecordCount();
-            $params = array('resumptionToken' => $token['text']);
-            $doNext = true;
-            $status = 'to be continued';
-          }
+          $total += $harvester->getRecordCount();
+          $params = array('resumptionToken' => $token['text']);
+          $doNext = true;
+          $status = 'to be continued';
         }
       }
     }
-    printReport($token, $currentRecordCount);
-  } while ($doNext);
+  }
+  printReport($token, $currentRecordCount);
+} while ($doNext);
 
-echo 'Finished', (isset($options['set']) ? ' SET: ' . $options['set'] : ''), ' STATUS: ', $status, LN;
+echo $harvester->getRequestUrl(), LN;
+printf("%s - Finished %s STATUS %s\n", date('H:i:s'), (isset($options['set']) ? ' SET: ' . $options['set'] : ''), $status);
 
 
 /**
@@ -180,7 +197,8 @@ function printReport($token, $currentRecordCount) {
   $cursor = isset($token['attributes']['cursor']) ? $token['attributes']['cursor'] : $currentRecordCount;
   $completeListSize = isset($token['attributes']['completeListSize']) ? $token['attributes']['completeListSize'] : 0;
   $t2 = microtime(TRUE);
-  $report = sprintf("harvested records: %8d / total records: %d / last request took: %.1fs (fetch: %.1fs) / total: %s / token: %s",
+  $report = sprintf("%s - harvested records: %8d / total records: %d / last request took: %.1fs (fetch: %.1fs) / total: %s / token: %s",
+    date('H:i:s'),
     $cursor,
     $completeListSize,
     ($t2 - $times['t1']),
@@ -194,7 +212,7 @@ function printReport($token, $currentRecordCount) {
   }
 
   $report .= sprintf(" / HTTP response %d %s", $harvester->getHttpCode(), $harvester->getContentType());
-  echo $report, LN; 
+  echo $report, LN;
   $times['t1'] = $t2;
 }
 
@@ -239,7 +257,7 @@ function getOutputFileName($total) {
   } else {
     $fileNameTpl = FILE_NAME_TEMPLATE;
   }
-  echo $fileNameTpl, LN;
+  // echo 'file name template: ', $fileNameTpl, LN;
   return sprintf($fileNameTpl, $total);
 }
 
@@ -248,6 +266,7 @@ function processOptions($input) {
   processOption($options, $input, 'set', 's', TRUE);
   processOption($options, $input, 'id', 'i');
   processOption($options, $input, 'file', 'f');
+  processOption($options, $input, 'split', 't');
   return $options;
 }
 

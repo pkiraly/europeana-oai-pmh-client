@@ -1,4 +1,7 @@
 <?php
+/**
+ * Produces id-based-harvester-list.txt which contains the sets which should be harvested
+ */
 
 $harvestables = json_decode(file_get_contents("harvestable.json"));
 $runners = array();
